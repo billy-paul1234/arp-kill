@@ -1,0 +1,553 @@
+#!/bin/bash
+
+#Title........: arp-kill
+#Author.......: billy-paul1234
+#Usage........: sudo bash arp-kill wlan0
+#Description..:
+#  program to detect man in the middle attack
+#  Scan all ip and mac in the network
+#  if  mac of any ip  is equal to mac of different ip
+#  then the ARP can be poisoned or the host uses virtual ip
+#  Now detect the host is using virtual ip or the host is realy poisoned the network
+#  if the host poisoned the Network
+#  then diconnect the host form Network
+#
+
+#colors
+red="\033[31m"
+background_red="\033[101m"
+green="\033[32m"
+yellow="\033[33m"
+blue="\033[34m"
+white="\033[0m"
+
+#function to display help
+function help() {
+        if [ "$1" == "-h" ] || [ "$1" == "--help" ] || [ "$2" != "1" ]; then
+                echo -e "${white}
+Discription:
+        ARP-KILL tool is used to find the man in the middle attack over the network. And find the attacker. Not only for your device, it can also detect for other devices connected in the network. And you can also kick the attacker from the network.
+
+Usage:
+     sudo arp-kill  <interface> 
+
+Examples:
+     sudo arp-kill  wlan0
+
+
+arp-kill -h --> to display this usage options
+
+Get more information on:
+https://github.com/billy-paul1234/arp-kill
+        
+               "
+                exit
+        fi
+}
+
+ints=$(ip link show | grep UP | awk '{print $2}')
+help=1
+IFS='\n'
+x=0
+while IFS= read -r line; do
+        # echo "${line::-1}"
+        if [ "${line::-1}" == "$1" ]; then
+                help=0
+                break
+        fi
+        x=$((x + 1))
+done <<<"$ints"
+x=0
+if [ $help -eq 1 ]; then
+        echo
+        echo -e "${yellow}Please enter a valid interface"
+        help -h
+fi
+help "$1" $#
+clear
+
+# decleration
+
+declare -a ip          #to store current ip list
+declare -a mac         #to store current mac list
+declare -A originalMac #to store originalmac of the victim
+arp=""
+interface="$1"
+monitor_interface="$1"
+gateway=$(route -n | grep "$interface" | awk '{print $2}' | grep -v 0.0.0.0) #store gateway ip
+# routermac=$( arp -n | grep "$gateway" | awk '{print $3}')
+routermac="$(iw dev "$interface" link | grep -i connected | awk '{print $3}')"
+# nmapscan=""    #scan report of nmap
+x=""           #for loop
+# y=""           #while loop
+j=""           #for loop
+i=""           #to store tmp ip and for loop
+m=""           #to store tmp mac
+line=""        #to to split the mac & ip
+arpscan=""     #to store arp -n
+mac_count=""   #store mac count
+# tmac_count=""  #store old mac count
+inew_mac=""    #store orignal mac for victim or Aattacker
+jnew_mac=""    #store orignal mac for victim or Aattacker
+attackermac="" #store mac of Aattacker
+attackerip=""  #store ip of attacker
+IFS="\n"
+# narp=0
+# nip=0
+per_mac="ea:ec:eb:eb:1c:b4"
+netid=$(route -n | grep "$interface" | awk '{print $1}' | grep -v 0.0.0.0)
+netid=${netid::-1}
+choice=""
+[ -d /tmp/dmitma/ ] || mkdir /tmp/dmitma/
+chmod 774 /tmp/dmitma/
+tmparp="/tmp/dmitma/tmparp.txt"
+touch "$tmparp"
+chmod 774 /tmp/dmitma/*
+echo "" >"$tmparp"
+# echo $1 $2 $3 $4
+
+#function to check internet connection if no internet connection exit
+function check_connection() {
+        #check internet connection if no connection done run the script
+        # local connection="" #store ping report
+        # connection=$(ping $gateway -q -c 3 | grep loss | awk '{print $4}')
+        # if [ "$connection" == "" -o "$connection" == "0" ] ; then
+        #         echo -e "${blue}No connection....${white}"
+        # else
+        #         echo -e "${blue}Connected${white}"
+        # fi
+
+        # new method
+        while true; do
+                gateway=$(route -n | grep "$interface" | awk '{print $2}' | grep -v 0.0.0.0)
+                if [ "$gateway" != '' ]; then
+                        echo -e "${blue}Connected${white}"
+                        break
+                fi
+                echo -e "${blue}No connection....${white}"
+                sleep 2
+        done
+}
+
+function scan_ip_mac() {
+        # new method for scan
+        for i in {1..254}; do ping -c 3 -w 1 "${netid}${i}" >/dev/null & done
+        sleep 2
+        arp-scan --localnet -I "$interface" | grep -v 'MAC\|host\|packet' | awk '{print $1,$2}' | sort | uniq >>"$tmparp"
+        pkill ping
+}
+
+function scan_for_clone() {
+        usermac="$2"
+        userip="$1"
+
+        arptables -F
+        arptables -A OUTPUT -j ACCEPT
+        arptables -A OUTPUT --source-mac "$usermac" -j DROP
+        iptables -F
+        iptables -A OUTPUT -j ACCEPT
+        iptables -A OUTPUT -s "$userip" -j DROP
+        ebtables -F
+        ebtables -A OUTPUT -j ACCEPT
+        ebtables -A OUTPUT -s "$usermac" -j DROP
+        ip6tables -F
+        ip6tables -A OUTPUT -j DROP
+
+        ifconfig "$interface" down
+        ifconfig "$interface" hw ether "$usermac"
+        ifconfig "$interface" "$userip"
+        ifconfig "$interface" up
+
+        # date
+        while true; do
+                gateway=$(route -n | grep "$interface" | awk '{print $2}' | grep -v 0.0.0.0)
+                if [ "$gateway" != '' ]; then
+                        break
+                fi
+                # echo -n "."
+        done
+        scan_ip_mac
+        iptables -F && arptables -F && ip6tables -F && ebtables -F
+}
+function print_ip_mac() {
+        local x
+        local string_space
+        local sizeofip
+        local space
+        local ntimes
+        #to print all ip and mac
+        for ((x = 0; x <= mac_count; x++)); do
+                # to control space
+                string_space=" "
+                sizeofip=${#ip[$x]}
+                ntimes=$((15 - sizeofip))
+                space=""
+                for ((i = 0; i < ntimes; i++)); do
+                        space="$space$string_space"
+                done
+                ####################
+                if [ "${mac[$x]}" == "" ]; then
+                        continue
+                elif [ "${mac[$x]}" == "$attackermac" ]; then
+                        # echo -ne "$x.  ${ip[$x]}   ---   ${red}${mac[$x]}${green}"
+                        if [ "${originalMac[${ip[$x]}]}" == "$attackermac" ]; then
+                                echo -e "${green}${ip[$x]}${space}:  ${red}${mac[$x]} Attacker found ${green}"
+                        else
+                                echo -e "${green}${ip[$x]}${space}:  ${red}${mac[$x]}${green} ${originalMac[${ip[$x]}]}"
+                        fi
+                else
+                        # echo -ne "$x.  ${ip[$x]}   ---   ${mac[$x]}"
+                        echo -e "${green}${ip[$x]}${space}:  ${mac[$x]}"
+                fi
+        done
+}
+
+function check_attacker() {
+        local i
+        local j
+        local x
+        local line
+        # local return
+        unset ip
+        unset mac
+        arpscan="$1"
+        i=$(echo "$arpscan" | awk '{print $1}')
+        m=$(echo "$arpscan" | awk '{print $2}')
+
+        #storing ip in array
+        IFS='\n'
+        x=0
+        while IFS= read -r line; do
+                ip[x]="$line"
+                x=$((x + 1))
+        done <<<"$i"
+
+        #storing mac in array
+        x=0
+        while IFS= read -r line; do
+                mac[x]="$line"
+                x=$((x + 1))
+        done <<<"$m"
+        mac_count=$(("$(echo -n "$m" | wc -l)")) #this will count number of mac address is variable m
+        #echo $mac_count mac
+        ## Finding attacker
+        ## To compare the mac address
+        for ((i = 0; i < mac_count; i++)); do
+                for ((j = $((i + 1)); j <= mac_count; j++)); do
+                        if [ "${ip[$i]}" == "" ] || [ "${ip[$j]}" == "" ] || [ "${mac[$i]}" == "" ] || [ "${mac[$j]}" == "" ]; then
+                                continue
+                        fi
+                        # echo comparing mac....
+                        # echo i=$i j=$j
+                        if [ "${mac[$i]}" == "${mac[$j]}" ]; then
+                                #echo "${mac[$i]}  --   ${mac[$j]} "
+                                if [ "$2" != "0" ]; then
+                                        x=0
+                                        while IFS= read -r line; do
+                                                cip="$(echo "$line" | awk '{print $1}')"
+                                                cmac="$(echo "$line" | awk '{print $2}')"
+                                                if [ "$cip" == "${ip[$i]}" ]; then
+                                                        inew_mac="$cmac"
+                                                        originalMac[${ip[$i]}]="$inew_mac"
+                                                fi
+                                                if [ "$cip" == "${ip[$j]}" ]; then
+                                                        jnew_mac="$cmac"
+                                                        originalMac[${ip[$j]}]="$jnew_mac"
+                                                fi
+                                                x=$((x + 1))
+                                        done <<<"$scan"
+                                elif [ "$2" == "0" ] || [ "$inew_mac" == "" ] || [ "$jnew_mac" == "" ]; then
+                                        #if two ip has same mac then checking the ip is  poisoned or virtual ip
+                                        echo "This is nmap scan,this might take time..."
+                                        inew_mac="$(nmap --traceroute "${ip[$i]}" | grep MAC | awk '{print $3}')" #Finding the orginal mac of the two ip
+                                        jnew_mac="$(nmap --traceroute "${ip[$j]}" | grep MAC | awk '{print $3}')"
+                                        inew_mac="$(echo "$inew_mac" | tr '[:upper:]' '[:lower:]')"
+                                        jnew_mac="$(echo "$jnew_mac" | tr '[:upper:]' '[:lower:]')"
+                                        originalMac[${ip[$i]}]="$inew_mac"
+                                        originalMac[${ip[$j]}]="$jnew_mac"
+                                fi
+
+                                #if the mac of the two ip is equal the host is using virtual ip
+                                # echo "$inew_mac  ---    $jnew_mac"
+
+                                if [ "$inew_mac" == "$jnew_mac" ]; then
+                                        echo This is virtual ip
+
+                                ##if 1st ip's mac == 1st ip's new mac and if 2nd ip's mac is not equal to 2nd ip's new mac then ip 1 is the attacker
+                                elif [ "$inew_mac" == "${mac[$i]}" ] && [ "$jnew_mac" != "${mac[$j]}" ]; then
+                                        #Now we disconnect the attacker form network
+                                        attackermac="$inew_mac"
+                                        attackerip="${ip[$i]}"
+                                        # echo -e "${red}attacker found1 $attackerip $attackermac $interface ${white}"
+                                        print_ip_mac
+                                        return 1
+                                        # break
+
+                                #if 2nd ip's mac is equal to 2nd ip's new mac and if 1'st mac is not equal to 1st ip's new mac then ip 2 is the attacker
+                                elif [ "$jnew_mac" == "${mac[$j]}" ] && [ "$inew_mac" != "${mac[$i]}" ]; then
+                                        #Now we disconnect the attacker form network
+                                        attackermac="$jnew_mac"
+                                        attackerip="${ip[$j]}"
+                                        # echo -e "${red}attacker found2 $attackerip $attackermac $interface${white}"
+                                        print_ip_mac
+                                        return 1
+                                        # break
+
+                                elif [ "$inew_mac" != "$jnew_mac" ]; then
+                                        attackermac="${mac[$j]}"
+                                        #attackerip="${ip[$j]}"
+                                        # echo -e "${red}attacker found2 $attackermac $interface${white}" #$attackerip
+                                        print_ip_mac
+                                        return 1
+                                        # break
+                                fi
+                        fi
+                done
+                # if [ "$return" == "1"  ];then break ;fi
+        done
+        # To compare the ip
+        for ((i = 0; i < mac_count; i++)); do
+                for ((j = $((i + 1)); j <= mac_count; j++)); do
+                        if [ "${ip[$i]}" == "" ] || [ "${ip[$j]}" == "" ] || [ "${mac[$i]}" == "" ] || [ "${mac[$j]}" == "" ]; then
+                                continue
+                        fi
+                        # echo comparing ip....
+                        # echo i=$i j=$j
+                        if [ "${ip[$i]}" == "${ip[$j]}" ]; then
+                                if [ "$2" != "0" ]; then
+                                        x=0
+                                        while IFS= read -r line; do
+                                                cip="$(echo "$line" | awk '{print $1}')"
+                                                cmac="$(echo "$line" | awk '{print $2}')"
+                                                if [ "$cip" == "${ip[$i]}" ]; then
+                                                        inew_mac="$cmac"
+                                                        originalMac[${ip[$i]}]="$inew_mac"
+                                                fi
+                                                x=$((x + 1))
+                                        done <<<"$scan"
+                                elif [ "$2" == "0" ] || [ "$inew_mac" == "" ] || [ "$jnew_mac" == "" ]; then
+                                        #if two ip has same mac then checking the ip is  poisoned or virtual ip
+                                        echo "This is nmap scan,this might take time..."
+                                        inew_mac="$(nmap --traceroute "${ip[$i]}" | grep MAC | awk '{print $3}')" #Finding the orginal mac of the two ip
+                                        inew_mac="$(echo "$inew_mac" | tr '[:upper:]' '[:lower:]')"
+                                        originalMac[${ip[$i]}]="$inew_mac"
+                                fi
+                                # echo "$inew_mac  ---    $jnew_mac"
+                                if [ "$inew_mac" != "${mac[$i]}" ]; then
+                                        attackermac="${mac[$i]}"
+                                        # echo -e "${red}attacker found2 $attackermac $interface${white}" #$attackerip
+                                        print_ip_mac
+                                        return 1
+                                        # break
+
+                                elif [ "$inew_mac" != "${mac[$j]}" ]; then
+                                        attackermac="${mac[$j]}"
+                                        # echo -e "${red}attacker found2 $attackermac $interface${white}" #$attackerip
+                                        print_ip_mac
+                                        return 1
+                                        # break
+                                fi
+                        fi
+                done
+                # if [ "$return" == "1"  ];then break ;fi
+        done
+        print_ip_mac
+}
+
+function change_original_ip() {
+        ifconfig "$interface" down
+        macchanger --mac "$per_mac" "$interface" >/dev/null
+        ifconfig "$interface" up
+        iptables -F && arptables -F && ip6tables -F && ebtables -F
+        sleep 2
+}
+
+function disconnect_attacker() {
+        #disconnect attacker
+        #dattacker "$monitor_interface" "$routermac" "$attackermac"
+        local int=''          #store monitor interface
+        local tmp=''          #scan report of airodump-ng to grep the channal
+        local channel=''      #router channel
+        local aireplaykill='' #pid of aireplay-ng
+        int="$monitor_interface"
+        # echo "dattacker int="${int}mon" "$routermac" "$attackermac""
+        # echo arg "$1" $2 $3
+        #this will enable the monitor mode if not enabled
+        tmp="$(ifconfig "$int")"
+        [ "$tmp" != "" ] && echo airmon-ng start "$int" && airmon-ng check kill && airmon-ng start "$int"
+        # scanning for network
+        # echo "$int" - int
+        # storing the network interface in array
+        declare -a interfaces
+        ints=$(ip link show | grep UP | awk '{print $2}')
+        IFS='\n'
+        x=0
+        while IFS= read -r line; do
+                echo -e "${yellow}${x}.${blue} ${line::-1}"
+                interfaces[x]="${line::-1}"
+                x=$((x + 1))
+        done <<<"$ints"
+        echo
+        echo -ne "${white}Enter a monitor interface: "
+        read -r int
+        int="${interfaces[$int]}"
+        # echo "$int int"
+        # echo -ne "${yellow}How many minutes do you want to disconnect the attacker from your network: ${white}"
+        echo -ne "How many minutes do you want to disconnect the attacker from your network: "
+        read -r time
+        x=0
+
+        # #intc=$(echo -n "$int" | wc -c)
+        # tmp=$(ifconfig "${int}mon")
+        # # echo "tmp --  $tmp"
+        # [ "$tmp" == "" ] && echo your interface not support monitormode && exit
+        # echo airodump-ng "${int}mon" -w /tmp/dmitma/scan-report
+        airodump-ng "$int" -w /tmp/dmitma/scan-report &
+        sleep 10
+        pkill airodump-ng
+
+        #slicing channel from the scan report
+        # tmp=$(cat /tmp/dmitma/scan-report-01.csv | grep -i wpa | grep -i "$routermac" | awk '{print $6}')
+        # tmp="$(cat /tmp/dmitma/scan-report-01.csv | grep -i "wpa\|$routermac" | awk 'NR == 1 {print $6}')"
+        tmp="$(cat /tmp/dmitma/scan-report-01.csv | grep -i "$routermac" | grep -i "ccmp" | awk 'NR == 1 {print $6}')"
+        channel="${tmp:0:-1}"
+        echo "$channel"
+        # rm /tmp/dmitma/*
+
+        #targeting the channel
+        echo airodump-ng --bssid "$routermac" --channel "$channel" "$int"
+        airodump-ng --bssid "$routermac" --channel "$channel" "$int" &
+        sleep 15
+        pkill airodump-ng
+
+        #start attack against the attacker
+        echo starting deauthendication....
+        echo "aireplay-ng --deauth 100000 -a ""$routermac"" -c ""$attackermac"" ""$int"" & sleep 5"
+        aireplay-ng --deauth 100000 -a "$routermac" -c "$attackermac" "$int" &
+        echo ---------------------
+        aireplaykill=$(pgrep aireplay-ng | tail -n 1)
+        sleep "$time"
+
+        echo
+        echo
+        echo
+        echo killing attack....
+        echo
+        echo
+        kill "$aireplaykill"
+        pkill airmon-ng
+        pkill aireplay-ng
+        pkill airmon-ng
+        pkill aireplay-ng
+        sleep 2
+        strings="""
+Execute the following command to restart your network manager:
+
+sudo airmon-ng check kill
+sudo airmon-ng stop $int
+sudo service NetworkManager restart
+"""
+        echo -e "${red}$strings${white}"
+        echo
+        echo
+        sleep 5
+        echo x--attack stoped--x
+        # rm /tmp/dmitma/*
+}
+
+# Function to be called on Ctrl+C
+cleanup() {
+        echo -e "${blue}Ctrl+C pressed. Cleaning up.....${white}"
+        change_original_ip
+        # Add your cleanup code here
+        exit 0
+}
+
+#starting main
+# Register the cleanup function to be called on Ctrl+C
+trap cleanup SIGINT
+strings="PRESS ctrl + c to exit program............"
+# echo -e "\033[33;5m$blinking_string\033[0m"   # Yellow blinking text
+echo -e "$yellow$strings$white"
+check_connection
+echo -e "${blue}Scaning started please wait.......${white}"
+while true; do
+        iptables -F && arptables -F && ip6tables -F && ebtables -F
+        for i in {1..254}; do ping -c 3 -w 1 "${netid}${i}" >/dev/null & done
+        sleep 2
+        scan=$(arp-scan --localnet -I "$interface" | grep -v 'MAC\|host\|packet' | awk '{print $1,$2}' | sort | uniq)
+        pkill ping
+        check_attacker "$scan" "0"
+        if [ "$attackermac" != "" ]; then
+                echo -e "${background_red}Your device has been attacked by $attackerip $attackermac       ${white}"
+                # echo -e "$b"
+                echo -ne "${yellow}
+Do you want to disconnect the attacker from Network 
+Press Y only if your wifi device support Monitor mode (default No) (Y/n):${white} "
+                read -r choice
+                if [ "$choice" == "y" ] || [ "$choice" == "Y" ]; then
+                        disconnect_attacker "$monitor_interface"
+                        iptables -F && arptables -F && ip6tables -F && ebtables -F
+                        exit
+                else
+                        attackermac=""
+                        attackerip=""
+                        # echo
+                        echo -e "${blue}Scaning for other devices.......${white}"
+                fi
+        fi
+        x=0
+        while IFS= read -r line; do
+                cip="$(echo "$line" | awk '{print $1}')"
+                cmac="$(echo "$line" | awk '{print $2}')"
+                if [ "$cip" == '' ] || [ "$cmac" == '' ] || [ "$cip" == "$gateway" ]; then
+                        continue
+                fi
+                # to control space
+                string_space=" "
+                sizeofip=${#cip}
+                ntimes=$((15 - sizeofip))
+                space=""
+                for ((i = 0; i < ntimes; i++)); do
+                        space="$space$string_space"
+                done
+                ##############################
+                dot=".."
+                ntimes=$x
+                dots=$(printf "%${ntimes}s" | sed "s/ /$dot/g")
+                echo -e "${yellow}$cip${space}:  $cmac   cloning..$dots"
+                # echo -e "${green}$cip${space}:  $cmac"
+                scan_for_clone "$cip" "$cmac"
+                x=$((x + 1))
+        done <<<"$scan"
+        # echo
+        # echo -e "${blue}Scaning completed${white}"
+        # echo -e "${blue}checking for attacker....${white}"
+        change_original_ip
+        # attackermac="3c:91:80:32:71:3f" #store mac of Aattacker
+        arp="$(cat "$tmparp")"
+        arp="$(echo "$arp" | sort | uniq)"
+        # echo
+        check_attacker "$arp" "1"
+        if [ "$attackermac" != "" ]; then
+                echo -e "${background_red}Attacker found $attackerip $attackermac       ${white}"
+                # echo -e "$b"
+                echo -ne "${yellow}
+Do you want to disconnect the attacker from Network 
+Press Y only if your wifi device support Monitor mode (default No) (Y/n):${white} "
+                read -r choice
+                if [ "$choice" == "y" ] || [ "$choice" == "Y" ]; then
+                        disconnect_attacker "$monitor_interface"
+                fi
+                # change_original_ip
+                iptables -F && arptables -F && ip6tables -F && ebtables -F
+                exit
+        else
+                # echo No attacker was found Network is safe
+                :
+        fi
+        # sleep 3
+        # clear
+        # echo -e "$yellow$strings$white"
+done
+
