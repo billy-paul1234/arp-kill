@@ -55,7 +55,7 @@ ARP-KILL tool is used to find the man in the middle attack over the network. And
 * `ls`
 * `chmod +x *`
 * `sudo bash setup.sh`
-* `sudo arp-kill <interface>`
+* `#sudo arp-kill <interface>`
 
 ## USAGE OPTIONS [Kali Linux, Ubuntu & ParrotOS] :
 
