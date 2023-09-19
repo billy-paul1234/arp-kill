@@ -68,10 +68,6 @@ Examples:
 
 
 arp-kill -h --> to display this usage options
-
-Get more information on:
-https://github.com/billy-paul1234/arp-kill
-
 ```
 
 ## SCREEN SHOTS [ ]
