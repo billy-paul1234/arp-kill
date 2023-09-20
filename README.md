@@ -72,7 +72,7 @@ arp-kill -h --> to display this usage options
 ## SCREEN SHOTS [ ]
 
 <p align="center">
- <a href="https://billy-paul1234.github.io/arp-kill/" target="_blank" rel="noreferrer"> <img src="https://github.com/billy-paul1234/arp-kill/assets/137751689/2c9cc0b8-78fc-4925-8d0f-94913e285c75" alt="Arp poisoning with NetHenter" width="80%"  width="80%%"/> </a> 
+ <a href="https://billy-paul1234.github.io/arp-kill/" target="_blank" rel="noreferrer"> <img src="https://github.com/billy-paul1234/arp-kill/assets/137751689/2c9cc0b8-78fc-4925-8d0f-94913e285c75" alt="Arp poisoning with NetHenter" width="50%"  width="40%%"/> </a> 
  </p>
  <h2 align="center" >
  <b >Arp poisoning with NetHenter</b>
