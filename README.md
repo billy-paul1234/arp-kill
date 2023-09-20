@@ -39,7 +39,6 @@ ARP-KILL tool is used to find the man in the middle attack over the network. And
 [+]--Now you need internet connection to continue further process...
 
 * `sudo apt-get update -y`
-* `sudo apt-get upgrade -y`
 * `sudo apt-get install net-tools -y`
 * `sudo apt-get install aircrack-ng -y`
 * `sudo apt-get install nmap -y`
