@@ -6,6 +6,10 @@ Man In The Middle Attack Detection Tool
 
 ARP-KILL tool is used to find the man in the middle attack over the network. And find the attacker. Not only for your device, it can also detect for other devices connected in the network. And you can also kick the attacker from the network.
 
+## EXAMPLE :
+
+If A and B is Attacked by C. And you are D you can find that A and B is attacked by C using arp-kill.
+
 ## AVAILABLE ON :
 
 * Linux
@@ -112,3 +116,4 @@ Comming Soon....
 
 ## WARNING : 
 ***This tool work only on wifi network.***
+***Don't use virtual machine.***
