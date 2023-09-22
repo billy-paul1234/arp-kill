@@ -512,11 +512,11 @@ Press Y only if your wifi device support Monitor mode (default No) (Y/n):${white
                         space="$space$string_space"
                 done
                 ##############################
-                dot=".."
+                # dot=".."
                 ntimes=$x
-                dots=$(printf "%${ntimes}s" | sed "s/ /$dot/g")
-                echo -e "${yellow}$cip${space}:  $cmac   cloning..$dots"
-                # echo -e "${green}$cip${space}:  $cmac"
+                # dots=$(printf "%${ntimes}s" | sed "s/ /$dot/g")
+                # echo -e "${yellow}$cip${space}:  $cmac   cloning..$dots"
+                echo -e "${green}$cip${space}:  $cmac"
                 scan_for_clone "$cip" "$cmac"
                 x=$((x + 1))
         done <<<"$scan"
