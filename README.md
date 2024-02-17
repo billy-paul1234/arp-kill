@@ -1,10 +1,10 @@
 # ARP-KILL  <a href="" target="_blank" rel="noreferrer"> <img src="https://user-images.githubusercontent.com/137751689/269181903-ef8e06e4-5eaf-49ad-b1e4-c15cc49b6cbd.svg" alt="linux" width="40" height="40"/> </a> 
-Man In The Middle Attack Detection Tool
+Man-In-The-Middle Attack Detection and Prevention Tool
 
 
 ## ABOUT TOOL :
 
-ARP-KILL tool is used to find the man in the middle attack over the network. And find the attacker. Not only for your device, it can also detect for other devices connected in the network. And you can also kick the attacker from the network.
+ARP-KILL is a network security tool countering MITM attacks by scanning and analyzing network traffic. Notifies administrators to disconnect attacker.
 
 ## EXAMPLE :
 
