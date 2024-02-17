@@ -106,7 +106,12 @@ Comming Soon....
 
 ## OTHER PROJECTS:
 
-<b>[Router Redundancy Detector](https://github.com/billy-paul1234/RouterRD)</b>
+## <b>[Router Redundancy Detector](https://github.com/billy-paul1234/RouterRD)</b>
+
+## <b>[Calculator Vault](https://github.com/billy-paul1234/flutter_calculator_vault)</b> (Calculator Vault App Using Flutter)
+
+## <b>[ResumePdfToJsonOrCsv](https://github.com/billy-paul1234/ResumePdfToJsonOrCsv)</b> ( Convert resume pdf to json or csv )
+
 
 ## CONNECT ME IN:
 
