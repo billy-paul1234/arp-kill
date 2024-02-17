@@ -4,14 +4,14 @@
 #Author.......: billy-paul1234
 #Usage........: sudo bash arp-kill <interface>
 #Description..:
-                #  program to detect man in the middle attack
+                #  program to detect and prevent from Man-In-The-Middle attack
                 #  Scan all ip and mac in the network
                 #  if  mac of any ip  is equal to mac of different ip
                 #  then the ARP can be poisoned or the host uses virtual ip
                 #  Now detect the host is using virtual ip or the host is realy poisoned the network
                 #  if the host poisoned the Network
                 #  then diconnect the host form Network
-                #
+                
 
 #colors
 red="\033[31m"
